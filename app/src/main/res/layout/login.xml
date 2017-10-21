@@ -12,6 +12,7 @@
             android:layout_height="wrap_content"
             android:text="ID:"/>
         <EditText
+            android:id="@+id/user_id"
             android:layout_width="150dp"
             android:layout_height="wrap_content" />
     </LinearLayout>
@@ -24,6 +25,7 @@
             android:layout_height="wrap_content"
             android:text="PASSWORD:"/>
         <EditText
+            android:id="@+id/user_password"
             android:layout_width="150dp"
             android:layout_height="wrap_content" />
     </LinearLayout>
