@@ -3,6 +3,7 @@ package org.nashorn.prototype;
 import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -122,6 +123,23 @@ public class WebViewActivity extends AppCompatActivity {
         webView.setWebChromeClient(new WebBrowserClient());
         webView.setWebViewClient(new MyWebViewClient());
         webView.loadUrl(HOME_URL);
+
+        //로그인한 상태인지 확인하고, 비로그인이면 로그인 화면으로 전환
+        SharedPreferences pref = getSharedPreferences("pref", MODE_PRIVATE);
+        if (pref.getString("token", "").equals("")) {
+            Intent intent = new Intent(WebViewActivity.this,
+                    LoginActivity.class);
+            startActivity(intent);
+            finish();
+        }
+    }
+    //로그아웃
+    public void logout(View view) {
+        SharedPreferences pref = getSharedPreferences("pref", MODE_PRIVATE);
+        SharedPreferences.Editor editor = pref.edit();
+        editor.remove("token");
+        editor.commit();
+        finish();
     }
 
     public void goHome(View view) {
