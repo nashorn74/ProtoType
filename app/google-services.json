@@ -1,0 +1,42 @@
+{
+  "project_info": {
+    "project_number": "308131726681",
+    "firebase_url": "https://shinhanandroid.firebaseio.com",
+    "project_id": "shinhanandroid",
+    "storage_bucket": "shinhanandroid.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:308131726681:android:259482bda689169a",
+        "android_client_info": {
+          "package_name": "org.nashorn.prototype"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "308131726681-vf35uqm3l33knkc63o06b09uoobtgdpv.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD8neM0TD9o8yVptw7rcY57ShP5OwB6ImI"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 1,
+          "other_platform_oauth_client": []
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
