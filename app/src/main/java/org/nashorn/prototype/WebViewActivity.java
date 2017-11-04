@@ -190,6 +190,11 @@ public class WebViewActivity extends AppCompatActivity {
                 android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
         startActivityForResult(intent, REQUEST_IMAGE_ALBUM);
     }
+    public void goRecyclerView(View view) {
+        Intent intent = new Intent(WebViewActivity.this,
+                RecyclerViewActivity.class);
+        startActivity(intent);
+    }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
