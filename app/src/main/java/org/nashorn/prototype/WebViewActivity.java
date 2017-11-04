@@ -1,12 +1,18 @@
 package org.nashorn.prototype;
 
+import android.Manifest;
 import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.database.Cursor;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
@@ -27,6 +33,11 @@ import org.json.JSONObject;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.ByteArrayInputStream;
+import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
@@ -37,11 +48,16 @@ import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.util.Iterator;
 
+
 public class WebViewActivity extends AppCompatActivity {
     private static final String HOME_URL = "http://10.0.2.2:9000/#!/";
     private static final String SIGNUP_URL = "http://10.0.2.2:9000/#!/signup";
     private static final String USERLIST_URL = "http://10.0.2.2:9000/#!/user/list";
     private WebView webView = null;
+
+    private static final int REQUEST_IMAGE_CAMERA = 11;
+    private static final int REQUEST_IMAGE_ALBUM = 12;
+    private static final int CROP_FROM_CAMERA = 13;
 
     final class WebBrowserClient extends WebChromeClient {
         @Override
@@ -142,10 +158,23 @@ public class WebViewActivity extends AppCompatActivity {
 
         //교재 p707~p713 Firebase 설정 적용
         //Registration ID
-        String regId = FirebaseInstanceId.getInstance().getToken();
-        Log.i("regId", regId);
-        new Nologin().execute(
-                "http://172.16.1.248:52273/user/nologin", regId);
+        try {
+            String regId = FirebaseInstanceId.getInstance().getToken();
+            Log.i("regId", regId);
+            new Nologin().execute(
+                    "http://172.16.1.248:52273/user/nologin", regId);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        //외장 메모리 접근 권한 요청
+        int permissionCheck = ContextCompat.checkSelfPermission(this,
+                Manifest.permission.READ_EXTERNAL_STORAGE);
+        if (permissionCheck != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this,
+                    new String[] {Manifest.permission.READ_EXTERNAL_STORAGE},
+                    1);
+        }
     }
     //로그아웃
     public void logout(View view) {
@@ -154,6 +183,39 @@ public class WebViewActivity extends AppCompatActivity {
         editor.remove("token");
         editor.commit();
         finish();
+    }
+    //이미지 업로드
+    public void goImageUpload(View view) {
+        Intent intent = new Intent(Intent.ACTION_PICK,
+                android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+        startActivityForResult(intent, REQUEST_IMAGE_ALBUM);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        switch (requestCode) {
+            case REQUEST_IMAGE_ALBUM:
+                Log.i("resultCode", resultCode+"");
+                if (resultCode == RESULT_OK)
+                {
+                    String mCurrentPhotoPath = getPathFromUri(data.getData());
+                    Log.i("mCurrentPhotoPath", mCurrentPhotoPath);
+                    Uri mImageCaptureUri = data.getData();
+                    new ImageUpload().execute(
+                            "http://172.16.1.248:52273/user/picture",
+                            mCurrentPhotoPath, "DESCRIPTION");
+                }
+                break;
+        }
+    }
+
+    public String getPathFromUri(Uri uri) {
+        Cursor cursor = getContentResolver().query(uri, null, null, null, null);
+        cursor.moveToNext();
+        String path = cursor.getString(cursor.getColumnIndex("_data"));
+        cursor.close();
+        return path;
     }
 
     public void goHome(View view) {
@@ -285,6 +347,99 @@ public class WebViewActivity extends AppCompatActivity {
                             Toast.LENGTH_SHORT).show();
                 }
             } catch (Exception e) { e.printStackTrace(); }
+        }
+    }
+
+    class ImageUpload extends AsyncTask<String,String,String> {
+        ProgressDialog dialog = new ProgressDialog(WebViewActivity.this);
+        @Override
+        protected String doInBackground(String... params) {
+            StringBuilder output = new StringBuilder();
+
+            DataOutputStream dos = null;
+            ByteArrayInputStream bis = null;
+            ByteArrayInputStream bis2 = null;
+            InputStream is = null;
+
+            String lineEnd = "\r\n";
+            String twoHyphens = "--";
+            String boundary = "*****";
+
+            try{
+                URL url = new URL(params[0]);
+                FileInputStream fstrm = new FileInputStream(params[1]);
+                String filename = new File(params[1]).getName();
+                String description = params[2];
+
+                HttpURLConnection conn = (HttpURLConnection)url.openConnection();
+                conn.setDoInput(true); conn.setDoOutput(true);
+                conn.setUseCaches(false);
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Connection", "Keep-Alive");
+                conn.setRequestProperty("Content-Type", "multipart/form-data;boundary=" + boundary);
+
+                // write data
+                dos = new DataOutputStream(conn.getOutputStream()) ;
+
+                dos.writeBytes(twoHyphens + boundary + lineEnd);
+                dos.writeBytes("Content-Disposition: form-data; name=\"description\"");
+                dos.writeBytes(lineEnd + lineEnd + description + lineEnd);
+
+                dos.writeBytes(twoHyphens + boundary + lineEnd);
+                dos.writeBytes("Content-Disposition:form-data;name=\"image\";filename=\"" + filename + "\"" + lineEnd);
+                dos.writeBytes(lineEnd);
+
+                int bytesAvailable = fstrm.available();
+                int maxBufferSize = 1024;
+                int bufferSize = Math.min(bytesAvailable, maxBufferSize);
+                byte[] buffer = new byte[bufferSize];
+                int bytesRead = fstrm.read( buffer , 0 , bufferSize);
+                Log.e("File Up", "text byte is " + bytesRead );
+                while(bytesRead > 0 ){
+                    dos.write(buffer , 0 , bufferSize);
+                    bytesAvailable = fstrm.available();
+                    bufferSize = Math.min(bytesAvailable, maxBufferSize);
+                    bytesRead = fstrm.read(buffer,0,bufferSize);
+                }
+
+                fstrm.close();
+
+                dos.writeBytes(lineEnd);
+                dos.writeBytes(twoHyphens + boundary + twoHyphens + lineEnd);
+
+                Log.e("File Up" , "File is written");
+                dos.flush();
+
+                BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(conn.getInputStream()));
+                String line = null;
+                while(true) {
+                    line = reader.readLine();
+                    if (line == null) break;
+                    output.append(line);
+                }
+                reader.close();
+                conn.disconnect();
+
+            } catch(Exception e) {
+                e.printStackTrace();
+            }
+            return output.toString();
+        }
+
+        @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+            dialog.setMessage("이미지 업로드 중...");
+            dialog.show();
+        }
+
+        @Override
+        protected void onPostExecute(String s) {
+            super.onPostExecute(s);
+            dialog.dismiss();
+
+            Log.i("result json", s);
         }
     }
 
